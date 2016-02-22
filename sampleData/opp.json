@@ -1,0 +1,171 @@
+{
+    "calls": [
+        {
+            "caller": {
+                "module": "opp1.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "walk",
+                "instance": 0,
+                "className": "Dog"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "opp1.js",
+                "function": "walk",
+                "instance": 0,
+                "className": "Dog"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "think",
+                "instance": 0,
+                "className": "Animal"
+            },
+            "params": [
+                1,
+                "Str",
+                [
+                    2,
+                    null,
+                    "b"
+                ],
+                {
+                    "foo": {
+                        "bar": "baz"
+                    }
+                }
+            ]
+        },
+        {
+            "caller": {
+                "module": "opp1.js",
+                "function": "walk",
+                "instance": 0,
+                "className": "Dog"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "moveLeg",
+                "instance": 0,
+                "className": "Dog"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "opp1.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "scratch",
+                "instance": 1,
+                "className": "Dog"
+            },
+            "params": [
+                {
+                    "name": "Pluto"
+                }
+            ]
+        },
+        {
+            "caller": {
+                "module": "opp1.js",
+                "function": "scratch",
+                "instance": 1,
+                "className": "Dog"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "receiveScratch",
+                "instance": 0,
+                "className": "Dog"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "opp2.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "opp1.js",
+                "function": "bringNewspaper",
+                "instance": 2,
+                "className": "Dog"
+            },
+            "params": []
+        }
+    ],
+    "modules": [
+        {
+            "name": "opp1.js",
+            "functions": [
+                {
+                    "name": "MainExecutionThread",
+                    "module": "opp1.js"
+                }
+            ],
+            "classes": {
+                "Dog#0": {
+                    "walk": {
+                        "name": "walk",
+                        "module": "opp1.js",
+                        "instance": 0,
+                        "className": "Dog"
+                    },
+                    "moveLeg": {
+                        "name": "moveLeg",
+                        "module": "opp1.js",
+                        "instance": 0,
+                        "className": "Dog"
+                    },
+                    "receiveScratch": {
+                        "name": "receiveScratch",
+                        "module": "opp1.js",
+                        "instance": 0,
+                        "className": "Dog"
+                    }
+                },
+                "Animal#0": {
+                    "think": {
+                        "name": "think",
+                        "module": "opp1.js",
+                        "instance": 0,
+                        "className": "Animal"
+                    }
+                },
+                "Dog#1": {
+                    "scratch": {
+                        "name": "scratch",
+                        "module": "opp1.js",
+                        "instance": 1,
+                        "className": "Dog"
+                    }
+                },
+                "Dog#2": {
+                    "bringNewspaper": {
+                        "name": "bringNewspaper",
+                        "module": "opp1.js",
+                        "instance": 2,
+                        "className": "Dog"
+                    }
+                }
+            }
+        },
+        {
+            "name": "opp2.js",
+            "functions": [
+                {
+                    "name": "MainExecutionThread",
+                    "module": "opp2.js"
+                }
+            ]
+        }
+    ]
+}

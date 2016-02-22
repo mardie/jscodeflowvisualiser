@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="d3.min.js"></script>
+    <style type="text/css">
+        body {
+            font: 300 36px "Helvetica Neue";
+            overflow: hidden;
+            position: relative;
+        }
+        h1{
+            font-weight: normal;
+        }
+        .canvas {
+            cursor: default;
+        }
+
+        .link {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 1.5s linear forwards;
+            moz-animation: dash 1.5s linear forwards;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        @moz-keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .link:last-child {
+            stroke-width: 3px;
+            stroke: red !important;
+            marker-mid: url(#markerArrowLast);
+        }
+
+        .node {
+            font-size: 11px;
+            font-family: monospace;
+        }
+
+        .link {
+            fill: none;
+            stroke: rgba(82, 82, 82, 0.81);
+            stroke-opacity: .4;
+            pointer-events: none;
+            marker-mid: url(#markerArrow);
+        }
+
+        .path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 5s linear forwards;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        .link.source, .link.target {
+            stroke-opacity: 1;
+            stroke-width: 2px;
+        }
+
+        .node.target {
+            fill: #d62728 !important;
+        }
+
+        .link.source {
+            stroke: #d62728;
+        }
+
+        .node.source {
+            fill: #2ca02c;
+        }
+
+        .link.target {
+            stroke: #2ca02c;
+        }
+
+        .canvas {
+            /*top: -80px;
+            left: -160px;
+            width: 500px;
+            height: 500px;*/
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            -webkit-backface-visibility: hidden;
+        }
+
+        /*params*/
+
+        .params {
+            width: 100%;
+            height: auto;
+            top: 0;
+            left: 0;
+            position: fixed;
+            font-size: 15px;
+            font-family: monospace;
+            text-align: center;
+            text-shadow: 1px 1px #ccc;
+
+        }
+
+        .params .null {
+            color: brown;
+        }
+
+        .params .nan {
+            color: grey;
+        }
+
+        .params .undefined {
+            color: yellow;
+        }
+
+        .params .number {
+            color: red;
+        }
+
+        .params .boolean {
+            color: blue;
+        }
+
+        .params .string {
+            color: green;
+        }
+
+        .params .object {
+            color: purple;
+        }
+
+        .params .array {
+            color: orange;
+        }
+
+        /*UI
+        */
+
+        .ui {
+            position: fixed;
+            background: rgba(255, 0, 0, 0.35);
+            width: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .ui .playback-controls {
+            background: rgba(0, 255, 0, 0.35);
+            width: 100%;
+            height: 100px;
+            bottom: 0;
+            position: fixed;
+        }
+
+        .ui .playback-controls .playback-slider {
+            width: calc(100% - 20px);
+            margin: auto;
+        }
+
+        .ui .playback-controls .playback-slider #slider {
+            width: 100%;
+        }
+
+        /*BUTTON BAR*/
+
+        .ui .playback-controls .button-bar {
+            text-align: left;
+            padding-left: 20px;
+        }
+
+        @media (min-width: 640px) {
+            .ui .playback-controls .button-bar {
+                text-align: center;
+            }
+        }
+
+        .ui .playback-controls .sampleData {
+            position: fixed;
+            right: 0;
+            bottom: 80px;
+        }
+
+        .ui .playback-controls #files {
+            position: fixed;
+            right: 0;
+            bottom: 60px;
+        }
+
+        .ui .playback-controls .button-bar button {
+            margin: -5px;
+        }
+
+
+    </style>
+</head>
+<body>
+<div class="canvas"></div>
+<div class="params">
+    <h1><strong>JS Code Flow</strong>: JS function call visualization.</h1>
+    <p>Diego Marquina - d@mardie.net</p>
+    <p><a href="https://github.com/mardie/jscodeflowvisualiser">https://github.com/mardie/jscodeflowvisualiser</a></p>
+    <i>Import a report to continue.</i>
+</div>
+<div class="ui">
+    <div class="playback-controls">
+        <div class="button-bar">
+            <button>⏮</button>
+            <button class="play-button">▶</button>
+            <button>⏹</button>
+            <!--<button>⏺</button>-->
+            <button>⏭</button>
+        </div>
+        <select class="sampleData">
+            <option>---Sample data---</option>
+            <option>Closures</option>
+            <option>OOP ES6</option>
+        </select>
+        <input type="file" id="files" name="files[]"/>
+        <div class="playback-slider">
+            <input id="slider" type="range" min="0" max="0" step="1" value="0"/>
+        </div>
+    </div>
+
+</div>
+<script>
+
+    var activeCall = 0, steps = 0, data, nodes, links, splines, path;
+    var canvas = document.querySelector('.canvas');
+
+    function getLinks(calls, nodes) {
+        var links = [],
+                nodeDic = {};
+
+        nodes.map(function (n) {
+            nodeDic[n.name] = n;
+        });
+
+        calls.map(function (call, index) {
+            if (index >= activeCall) {
+                return;
+            }
+
+            var instanceStr = (call.caller.instance !== undefined) ? ' ' + call.caller.className + '#' + call.caller.instance : '';
+            var src = call.caller.module + instanceStr + ' ' + call.caller.function;
+
+            var instanceDst = (call.callee.instance !== undefined) ? ' ' + call.callee.className + '#' + call.callee.instance : '';
+            var dst = call.callee.module + instanceDst + ' ' + call.callee.function;
+
+            links.push({
+                source: nodeDic[src],
+                target: nodeDic[dst]
+            })
+        });
+
+        return links
+    }
+
+    function genNodesFromModules(modules) {
+        return {
+            name: "",
+            key: "",
+            children: modules.map(function (moduleData) {
+                var children = [];
+
+                moduleData.functions.map(function (fun) {
+                    children.push({
+                        parent: module,
+                        name: moduleData.name + ' ' + fun.name,
+                        key: moduleData.name + ' ' + fun.name
+                    });
+                });
+
+
+                moduleData.classes && Object.keys(moduleData.classes).map(function (instanceName) {
+                    var methods = [];
+
+                    Object.keys(moduleData.classes[instanceName]).map(function (funName) {
+
+                        methods.push({
+                            parent: moduleData.classes[instanceName],
+                            name: moduleData.name + ' ' + instanceName + ' ' + funName,
+                            key: moduleData.name + ' ' + instanceName + ' ' + funName
+                        });
+
+                    });
+
+
+                    children.push({
+                        parent: module,
+                        name: moduleData.name + ' ' + instanceName,
+                        key: moduleData.name + ' ' + instanceName,
+                        children: methods
+                    });
+                });
+
+
+                var module = {
+                    name: moduleData.name,
+                    key: moduleData.name,
+                    children: children
+                };
+                return module;
+            })
+
+        }
+    }
+
+    function genNodesFromModules2(modules) {
+        return {
+            name: "",
+            key: "",
+            children: modules.map(function (moduleData) {
+                var children = [];
+
+                moduleData.functions.map(function (fun) {
+                    children.push({
+                        parent: module,
+                        name: moduleData.name + ' ' + fun.name,
+                        key: moduleData.name + ' ' + fun.name,
+                        module: moduleData.name
+                    });
+                });
+
+
+                moduleData.classes && Object.keys(moduleData.classes).map(function (instanceName) {
+                    var methods = [];
+
+                    Object.keys(moduleData.classes[instanceName]).map(function (funName) {
+
+                        methods.push({
+                            parent: moduleData.classes[instanceName],
+                            name: moduleData.name + ' ' + instanceName + ' ' + funName,
+                            key: moduleData.name + ' ' + instanceName + ' ' + funName,
+                            module: moduleData.name,
+                            instance: instanceName
+                        });
+
+                    });
+
+
+                    children.push({
+                        parent: module,
+                        name: moduleData.name + ' ' + instanceName,
+                        key: moduleData.name + ' ' + instanceName,
+                        module: moduleData.name,
+                        children: methods
+                    });
+                });
+
+
+                var module = {
+                    name: moduleData.name,
+                    key: moduleData.name,
+                    children: children,
+                    module: moduleData.name
+                };
+                return module;
+            })
+
+        }
+    }
+
+
+    //tooling
+
+    function radians(degrees) {
+        return degrees * (Math.PI / 180)
+    }
+
+
+    var w, h, rx, ry, m0, rotate, r,
+            arcModelDraw,
+            graphPadding, cluster, bundle, line, svg;
+
+
+    function init(data) {
+
+        if (!data) {
+            console.error('no data');
+            return;
+        }
+        activeCall = 0;
+
+        ui.updateParams('Use the controls to step over time.',[]);
+
+        var svgEl = document.querySelector('.canvas svg.main');
+        if (svgEl && canvas.contains(svgEl)) {
+            canvas.removeChild(svgEl);
+        }
+
+        w = window.innerWidth,
+        h = window.innerHeight - 100;
+        rx = w / 2;
+        ry = h / 2;
+        rotate = 0;
+        r = Math.min(w, h);
+
+        arcModelDraw = [];
+        var graphPadding = 150;
+
+        splines = [];
+
+        cluster = d3.layout.cluster()
+                .size([360, ry - graphPadding])
+                .sort(function (a, b) {
+                    return d3.ascending(a.key, b.key);
+                });
+
+        bundle = d3.layout.bundle();
+        line = d3.svg.line.radial()
+                .interpolate("bundle")
+                .tension(.40)
+                .radius(function (d) {
+                    return d.y;
+                })
+                .angle(function (d) {
+                    return d.x / 180 * Math.PI;
+                });
+
+        var div = d3.select(".canvas");
+
+        svg = div.append("svg:svg")
+                .attr("class", "main")
+                .attr("width", w)
+                .attr("height", h + 100)
+                .append("svg:g")
+                .attr("transform", "translate(" + rx + "," + ry + ")")
+                .attr("class", "root");
+
+
+        var defs = svg.append("defs");
+        var marker = defs.append("marker");
+
+        marker.attr({
+            id: 'markerArrow',
+            markerWidth: 13,
+            markerHeight: 13,
+            refX: 8,
+            refY: 3,
+            orient: "auto"
+        });
+        var arrow = marker.append('path');
+
+        arrow.attr({
+            d: "M0,0 L0,6 L9,3 z",
+            fill: '#525252'
+        });
+
+        var markerLast = defs.append("marker");
+
+        markerLast.attr({
+            id: 'markerArrowLast',
+            markerWidth: 7,
+            markerHeight: 7,
+            refX: 4,
+            refY: 1.5,
+            orient: "auto"
+        });
+        var arrowLast = markerLast.append('path');
+
+        arrowLast.attr({
+            d: "M0,0 L0,3 L4.5,1.5 z",
+            fill: '#F14344'
+        });
+
+        nodes = cluster.nodes(genNodesFromModules2(data.modules));
+        links = getLinks(data.calls, nodes);
+        splines = bundle(links);
+        steps = data.calls.length;
+        player = new Player(ui, steps);
+
+        slider.setAttribute('max', steps);
+        slider.value = activeCall;
+
+        path = svg.selectAll("path.link")
+                .data(links)
+                .enter().append("svg:path")
+                .attr("class", function (d) {
+                    return "link source-" + d.source.key + " target-" + d.target.key;
+                })
+                .attr("d", function (d, i) {
+                    return line(splines[i]);
+                });
+
+        var topG = svg.selectAll("g.node")
+                .data(nodes.filter(function (n) {
+                    return !n.children;
+                }))
+                .enter();
+
+        var arcs = nodes.filter(function (n) {
+            if (n.parent && n.parent.key == '') {
+                return true;
+            }
+        });
+
+        var arcsInstances = nodes.filter(function (n) {
+            if (n.instance) {
+                return true;
+            }
+        });
+
+        arcs.map(function (arc, index) {
+            var modName = arc.key;
+
+            var modNodes = nodes.filter(function (n) {
+                if (n.children) {
+                    return false;
+                }
+                if (n.module === modName) {
+                    return true;
+                }
+            }).sort(function (n, n1) {
+                return (n.x > n1.x) ? 1 : -1;
+            });
+            arcs[index].start = modNodes[0].x;
+            arcs[index].end = modNodes[modNodes.length - 1].x;
+
+        });
+
+        arcsInstances.map(function (arc, index) {
+            var modName = arc.module,
+                    instance = arc.instance;
+
+            var insNodes = nodes.filter(function (n) {
+                if (n.children) {
+                    return false;
+                }
+
+                if (n.module === modName && n.instance == instance) {
+                    return true;
+                }
+            }).sort(function (n, n1) {
+                return (n.x > n1.x) ? 1 : -1;
+            });
+            arcsInstances[index].start = insNodes[0].x;
+            arcsInstances[index].end = insNodes[insNodes.length - 1].x;
+
+        });
+
+        var color, colorInstances;
+
+        if (arcs.length <= 10) {
+            color = d3.scale.category10();
+        } else {
+            color = d3.scale.category20();
+        }
+
+        if (arcsInstances.length <= 10) {
+            colorInstances = d3.scale.category10();
+        } else {
+            colorInstances = d3.scale.category20();
+        }
+
+
+        arcs.map(function (arc, index) {
+            topG.call(function () {
+
+                if (arcModelDraw[index]) {
+                    return;
+                }
+                arcModelDraw[index] = true;
+                var sel = d3.select(".root");
+                sel.append("svg:path")
+                        .attr("class", "module-arc")
+
+                        .attr("fill", function (d, i) {
+                            return color(index);
+                        })
+                        .attr("d", function (d) {
+
+                            var init = radians(arc.start - 3);
+                            var end = radians(arc.end + 3);
+                            return d3.svg.arc()
+                                    .outerRadius(ry - graphPadding - 10)
+                                    .innerRadius(ry - graphPadding - 13)
+                                    .startAngle(init)
+                                    .endAngle(end)()
+                        });
+            })
+        });
+
+        arcsInstances.map(function (arc, index) {
+            topG.call(function () {
+
+                if (arcModelDraw[index]) {
+                    return;
+                }
+                arcModelDraw[index] = true;
+                var sel = d3.select(".root");
+                sel.append("svg:path")
+                        .attr("class", "module-arc")
+
+                        .attr("fill", function (d, i) {
+                            return color(index);
+                        })
+                        .attr("d", function (d) {
+
+                            var init = radians(arc.start - 3);//+ (Math.PI/2);
+                            var end = radians(arc.end + 3);// + (Math.PI/2);
+                            return d3.svg.arc()
+                                    .outerRadius(ry - graphPadding - 4)
+                                    .innerRadius(ry - graphPadding - 8)
+                                    .startAngle(init)
+                                    .endAngle(end)()
+                        });
+            })
+        });
+
+        var modG = topG.append("svg:g")
+
+
+        var fnGroup = modG.attr("class", "node")
+                .attr("id", function (d) {
+                    return "node-" + d.key;
+                })
+                .attr("transform", function (d) {
+                    return "rotate(" + (d.x - 90) + ")translate(" + d.y + ")";
+                })
+                .append("svg:text");
+
+        fnGroup.attr("dx", function (d) {
+                    return d.x < 180 ? 8 : -8;
+                })
+                .attr("dy", ".31em")
+                .attr("text-anchor", function (d) {
+                    return d.x < 180 ? "start" : "end";
+                })
+                .attr("transform", function (d) {
+                    return d.x < 180 ? null : "rotate(180)";
+                })
+                .text(function (d) {
+                    return d.key;
+                });
+    }
+
+
+    window.onresize = function () {
+        init(data);
+    };
+
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+        function handleFileSelect(evt) {
+            var files = evt.target.files;
+
+            var output = [];
+            for (var i = 0, f; f = files[i]; i++) {
+
+                var reader = new FileReader();
+                reader.onload = function (evt) {
+                    //readyState: 2
+                    data = JSON.parse(evt.target.result);
+                    init(data);
+                };
+                reader.readAsText(f);
+
+            }
+
+        }
+
+        document.getElementById('files').addEventListener('change', handleFileSelect, false);
+
+    } else {
+        alert('The File APIs are not fully supported in this browser.');
+    }
+
+    var sampleData = document.querySelector('.sampleData');
+
+    sampleData.onchange = function (evt) {
+        var file = './sampleData/';
+        switch (evt.target.value) {
+            case 'Closures':
+                file += 'closures.json';
+                break;
+            case 'OOP ES6':
+                file += 'opp.json';
+                break;
+            default:
+                return;
+        }
+
+        d3.json(file, function (_data) {
+            data = _data;
+            init(data);
+        });
+    };
+
+    function updateNodes(name, value) {
+        return function (d) {
+            if (value) this.parentNode.appendChild(this);
+            svg.select("#node-" + d[name].key).classed(name, value);
+        };
+    }
+
+    function cross(a, b) {
+        return a[0] * b[1] - a[1] * b[0];
+    }
+
+    function dot(a, b) {
+        return a[0] * b[0] + a[1] * b[1];
+    }
+
+
+    var slider = document.querySelector('#slider');
+
+    slider.oninput = slider.onchange = function (evt) {
+        updateLinks(+evt.target.value)
+    };
+
+
+    function updateLinks(index) {
+        activeCall = index;
+        if(!data || !data.calls){
+            return;
+        }
+        links = getLinks(data.calls, nodes);
+        splines = bundle(links);
+
+        svg.selectAll("path.link")
+                .data(links)
+                .enter().append("svg:path")
+                .attr("class", function (d) {
+                    return "link source-" + d.source.key + " target-" + d.target.key + " lastPath"
+                })
+                .attr("d", function (d, i) {
+                    return line(splines[i]);
+                });
+
+
+        svg.selectAll("path.link")
+                .data(links)
+                .exit().remove();
+        if (activeCall > 0) {
+            ui.updateParams(data.calls[activeCall - 1].callee.function, data.calls[activeCall - 1].params);
+        } else {
+            ui.updateParams();
+        }
+    }
+
+    var UI = function () {
+        this._slider = document.querySelector('#slider');
+        this._params = document.querySelector('.params');
+        this._playButton = document.querySelector('.ui .playback-controls .button-bar .play-button');
+
+        this._buttonBar = document.querySelector('.ui .playback-controls .button-bar');
+        this._buttonBar.addEventListener('click', this.clickButton);
+
+    };
+
+    UI.prototype.clickButton = function (evt) {
+        if (!data) {
+            return;
+        }
+
+        switch (evt.target.textContent) {
+            case '▶':
+                player.play(true);
+                break;
+            case '▮▮':
+                player.pause();
+                break;
+            case '⏹':
+                player.stop();
+                break;
+            case '⏭':
+                player.next();
+                break;
+            case '⏮':
+                player.prev();
+                break;
+            default:
+                break;
+        }
+    };
+
+    UI.prototype.updatePlayButton = function (isPlaying) {
+        this._playButton.innerText = isPlaying ? '▮▮' : '▶';
+        this._playButton.textContent = isPlaying ? '▮▮' : '▶';
+    };
+
+    UI.prototype.updateSlider = function (value) {
+        this._slider.value = value;
+        updateLinks(value);
+    };
+
+    UI.prototype.updateParams = function (name, params) {
+
+        function paramEl(param) {
+
+            if (param === null) {
+                //JSON serialises undefined and NaN to null
+                return '<span class="param null">null</span>';
+            }
+
+            if (param === undefined) {
+                return '<span class="param undefined">undefined</span>';
+            }
+
+            if (typeof param === "string") {
+                return '<span class="param string">"' + param + '"</span>';
+            }
+
+            if (typeof param === "boolean") {
+                return '<span class="param boolean">' + param + '</span>';
+            }
+
+            var subElems;
+            if (param.constructor === Array) {
+                subElems = '';
+                param.map(function (subparam, i) {
+
+                    subElems += i ? ', ' + paramEl(param[i]) : paramEl(param[i]);
+                });
+                return '<span class="param array">[' + subElems + ']</span>';
+            }
+
+            if (typeof param === "object") {
+                subElems = '';
+
+                for (var property in param) {
+                    if (param.hasOwnProperty(property)) {
+                        if (subElems !== '') {
+                            subElems += ', ' + property + ': ' + paramEl(param[property])
+                        } else {
+                            subElems += property + ': ' + paramEl(param[property]);
+                        }
+                    }
+                }
+
+                return '<span class="param object">{' + subElems + '}</span>';
+            }
+
+            if (isNaN(param)) {
+                return '<span class="nan">NaN</span>';
+            }
+
+            if (typeof param === "number") {
+                return '<span class="param number">' + param + '</span>';
+            }
+
+
+            return param;
+        }
+
+        if (name === undefined) {
+            this._params.innerHTML = '';
+            return;
+        }
+
+        var paramsEl = '<span>';
+        if (params) {
+            params.map(function (param, i) {
+                paramsEl += (i ? ', ' + paramEl(param) : paramEl(param) );
+            })
+        }
+        paramsEl += '</span>';
+
+        this._params.innerHTML = '<div>' + name + '(' + paramsEl + ')' + '</div>';
+    };
+
+    var ui = new UI();
+
+    var Player = function (ui, steps) {
+        this._ui = ui;
+        this.steps = steps;
+        this.playing = false;
+        this._timer = false;
+        this.speed = 1500;
+    };
+
+    Player.prototype.setConfig = function (obj) {
+        if (obj.speed) {
+            this.speed = obj.speed;
+        }
+    };
+
+    Player.prototype.updatePlayButton = function () {
+        ui.updatePlayButton(this.playing)
+    };
+
+    Player.prototype.play = function (immediate) {
+        var that = this;
+        if (this.playing) {
+            return;
+        }
+        if (activeCall == this.steps) {
+            activeCall = -1;
+        }
+
+        this.playing = true;
+        that.updatePlayButton();
+
+        if (immediate) {
+            if (activeCall < that.steps) {
+                activeCall = activeCall + 1;
+                that._ui.updateSlider(activeCall);
+                that.updatePlayButton();
+            }
+            if (activeCall == that.steps) {
+                that.pause()
+            }
+        }
+
+        this._timer = setInterval(function () {
+            if (activeCall < that.steps) {
+                activeCall = activeCall + 1;
+                that._ui.updateSlider(activeCall);
+                that.updatePlayButton();
+            }
+            if (activeCall == that.steps) {
+                that.pause()
+            }
+        }, this.speed);
+    };
+
+    Player.prototype.stop = function () {
+        this.playing = false;
+        this.updatePlayButton();
+        clearInterval(this._timer);
+        activeCall = 0;
+        this._ui.updateSlider(activeCall);
+    };
+
+    Player.prototype.pause = function () {
+        this.playing = false;
+        this.updatePlayButton();
+        clearInterval(this._timer);
+    };
+
+    Player.prototype.next = function () {
+        this.pause();
+        if (activeCall < this.steps) {
+            activeCall++;
+            this._ui.updateSlider(activeCall);
+        }
+    };
+
+    Player.prototype.prev = function () {
+        this.pause();
+        if (activeCall > 0) {
+            activeCall--;
+            this._ui.updateSlider(activeCall);
+        }
+    };
+
+
+    var player;
+
+
+</script>
+
+</body>
+</html>

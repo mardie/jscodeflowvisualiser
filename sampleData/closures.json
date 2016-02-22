@@ -1,0 +1,134 @@
+{
+    "calls": [
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "getCounter"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "log"
+            },
+            "params": [
+                1
+            ]
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "log"
+            },
+            "params": [
+                2
+            ]
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "log"
+            },
+            "params": [
+                3
+            ]
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "MainExecutionThread"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "params": []
+        },
+        {
+            "caller": {
+                "module": "closures.js",
+                "function": "anonfunction"
+            },
+            "callee": {
+                "module": "closures.js",
+                "function": "log"
+            },
+            "params": [
+                4
+            ]
+        }
+    ],
+    "modules": [
+        {
+            "name": "closures.js",
+            "functions": [
+                {
+                    "name": "MainExecutionThread",
+                    "module": "closures.js"
+                },
+                {
+                    "name": "getCounter",
+                    "module": "closures.js"
+                },
+                {
+                    "name": "anonfunction",
+                    "module": "closures.js"
+                },
+                {
+                    "name": "log",
+                    "module": "closures.js"
+                }
+            ]
+        }
+    ]
+}
